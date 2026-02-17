@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SovereignPulse — Fitch Sovereign Credit Ratings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#09090b;--surface:#111118;--card:#16161e;--border:#26263a;--text:#e4e4e7;--muted:#71717a;--accent:#3b82f6;--aaa:#1e40af;--aa:#2563eb;--a:#0891b2;--bbb:#16a34a;--bb:#ca8a04;--b:#ea580c;--ccc:#dc2626;--nr:#3f3f46}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh}
+/* TOP BAR */
+.topbar{display:flex;align-items:center;gap:16px;padding:10px 20px;background:var(--surface);border-bottom:1px solid var(--border);z-index:1000;flex-shrink:0}
+.logo{font-size:18px;font-weight:700;letter-spacing:-0.5px;white-space:nowrap}
+.logo span{color:var(--accent)}
+.search-box{flex:1;max-width:320px}
+.search-box input{width:100%;padding:7px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .2s}
+.search-box input:focus{border-color:var(--accent)}
+.filter-group{display:flex;gap:8px}
+.filter-group select{padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;outline:none;cursor:pointer}
+.btn{padding:7px 14px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-family:inherit;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+/* MAIN */
+.main{flex:1;display:flex;position:relative;overflow:hidden}
+#map{flex:1;background:var(--bg)}
+/* SIDEBAR */
+.sidebar{width:380px;background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;transition:transform .3s ease;flex-shrink:0}
+.sidebar.hidden{transform:translateX(100%);width:0;border:none;overflow:hidden}
+.sidebar-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+.sidebar-header h2{font-size:16px;font-weight:600}
+.close-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1}
+.close-btn:hover{color:var(--text)}
+.country-detail{padding:20px}
+.country-name{font-size:24px;font-weight:700;margin-bottom:4px}
+.country-region{color:var(--muted);font-size:13px;margin-bottom:16px}
+.rating-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-size:20px;font-weight:700;margin-bottom:6px}
+.outlook-badge{font-size:13px;color:var(--muted);margin-bottom:20px}
+.outlook-badge span{font-weight:600}
+.section-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:20px 0 10px;font-weight:600}
+.econ-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.econ-card{background:var(--card);border-radius:8px;padding:12px;border:1px solid var(--border)}
+.econ-label{font-size:11px;color:var(--muted);margin-bottom:4px}
+.econ-value{font-size:18px;font-weight:600}
+.history-table{width:100%;font-size:13px}
+.history-table td{padding:8px 0;border-bottom:1px solid var(--border);vertical-align:top}
+.history-table td:first-child{color:var(--muted);white-space:nowrap;width:90px;padding-right:12px}
+/* ACTIONS PANEL */
+.actions-panel{width:360px;background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0;transition:transform .3s ease}
+.actions-panel.hidden{transform:translateX(100%);width:0;border:none;overflow:hidden}
+.actions-panel .sidebar-header{position:sticky;top:0;background:var(--surface);z-index:1}
+.action-item{padding:14px 20px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.action-item:hover{background:var(--card)}
+.action-date{font-size:11px;color:var(--muted);margin-bottom:4px}
+.action-country{font-size:14px;font-weight:600;margin-bottom:2px}
+.action-desc{font-size:13px;color:var(--muted)}
+/* LEGEND */
+.legend{position:absolute;bottom:24px;left:24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;z-index:999;font-size:12px}
+.legend-title{font-weight:600;margin-bottom:8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)}
+.legend-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.legend-color{width:16px;height:12px;border-radius:3px}
+/* STATS BAR */
+.stats-bar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:999}
+.stat-pill{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500}
+.stat-pill b{color:var(--accent)}
+/* TOOLTIP */
+.country-tooltip{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:8px!important;padding:8px 12px!important;font-family:'Inter',sans-serif!important;font-size:13px!important;color:var(--text)!important;box-shadow:0 8px 32px rgba(0,0,0,.5)!important}
+.country-tooltip .tt-name{font-weight:600;font-size:14px}
+.country-tooltip .tt-rating{margin-top:2px;color:var(--muted)}
+.leaflet-tooltip-top:before,.leaflet-tooltip-bottom:before,.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{border:none!important}
+/* Leaflet overrides */
+.leaflet-control-zoom a{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
+.leaflet-control-zoom a:hover{background:var(--card)!important}
+.leaflet-control-attribution{display:none}
+/* RESPONSIVE */
+@media(max-width:768px){
+  .topbar{flex-wrap:wrap;gap:8px;padding:8px 12px}
+  .sidebar,.actions-panel{position:absolute;right:0;top:0;bottom:0;z-index:1001;width:100%!important}
+  .legend{bottom:12px;left:12px;font-size:11px;padding:8px 12px}
+  .stats-bar{top:8px;gap:4px}
+  .stat-pill{font-size:11px;padding:4px 10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="logo">Sovereign<span>Pulse</span></div>
+    <div class="search-box"><input type="text" id="searchInput" placeholder="Search countries..."></div>
+    <div class="filter-group">
+      <select id="regionFilter"><option value="">All Regions</option><option>Americas</option><option>Europe</option><option>Asia-Pacific</option><option>Middle East & Africa</option></select>
+      <select id="ratingFilter"><option value="">All Ratings</option><option value="AAA">AAA</option><option value="AA">AA range</option><option value="A">A range</option><option value="BBB">BBB range</option><option value="BB">BB range</option><option value="B">B range</option><option value="CCC">CCC & below</option></select>
+    </div>
+    <button class="btn" id="actionsBtn">📊 Recent Actions</button>
+  </div>
+  <div class="main">
+    <div id="map"></div>
+    <div class="legend">
+      <div class="legend-title">Fitch Rating Scale</div>
+      <div class="legend-row"><div class="legend-color" style="background:var(--aaa)"></div>AAA</div>
+      <div class="legend-row"><div class="legend-color" style="background:var(--aa)"></div>AA+/AA/AA-</div>
+      <div class="legend-row"><div class="legend-color" style="background:var(--a)"></div>A+/A/A-</div>
+      <div class="legend-row"><div class="legend-color" style="background:var(--bbb)"></div>BBB+/BBB/BBB-</div>
+      <div class="legend-row"><div class="legend-color" style="background:var(--bb)"></div>BB+/BB/BB-</div>
+      <div class="legend-row"><div class="legend-color" style="background:var(--b)"></div>B+/B/B-</div>
+      <div class="legend-row"><div class="legend-color" style="background:var(--ccc)"></div>CCC & below</div>
+      <div class="legend-row"><div class="legend-color" style="background:var(--nr)"></div>Not rated</div>
+    </div>
+    <div class="stats-bar" id="statsBar"></div>
+    <div class="sidebar hidden" id="sidebar">
+      <div class="sidebar-header"><h2>Country Detail</h2><button class="close-btn" id="closeSidebar">✕</button></div>
+      <div class="country-detail" id="countryDetail"></div>
+    </div>
+    <div class="actions-panel hidden" id="actionsPanel">
+      <div class="sidebar-header"><h2>📊 Recent Rating Actions</h2><button class="close-btn" id="closeActions">✕</button></div>
+      <div id="actionsList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GEOJSON_URL='https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson';
+let sovereigns=[], geoLayer=null, map=null;
+
+function ratingTier(r){
+  if(!r)return'nr';
+  if(r==='AAA')return'aaa';
+  if(r.startsWith('AA'))return'aa';
+  if(r.startsWith('A'))return'a';
+  if(r.startsWith('BBB'))return'bbb';
+  if(r.startsWith('BB'))return'bb';
+  if(r.startsWith('B'))return'b';
+  return'ccc';
+}
+
+function ratingColor(r){
+  const colors={aaa:'#1e40af',aa:'#2563eb',a:'#0891b2',bbb:'#16a34a',bb:'#ca8a04',b:'#ea580c',ccc:'#dc2626',nr:'#3f3f46'};
+  return colors[ratingTier(r)]||colors.nr;
+}
+
+function matchesFilter(s){
+  const search=document.getElementById('searchInput').value.toLowerCase();
+  const region=document.getElementById('regionFilter').value;
+  const rating=document.getElementById('ratingFilter').value;
+  if(search && !s.name.toLowerCase().includes(search))return false;
+  if(region && s.region!==region)return false;
+  if(rating && ratingTier(s.rating)!==ratingTier(rating))return false;
+  return true;
+}
+
+function fmtNum(n){
+  if(n>=1000)return(n/1000).toFixed(1)+'T';
+  return n.toFixed(0)+'B';
+}
+
+function outlookIcon(o){
+  if(!o)return'';
+  if(o.includes('Positive'))return'▲';
+  if(o.includes('Negative'))return'▼';
+  return'●';
+}
+
+function outlookColor(o){
+  if(!o)return'var(--muted)';
+  if(o.includes('Positive'))return'#22c55e';
+  if(o.includes('Negative'))return'#ef4444';
+  return'var(--muted)';
+}
+
+function showCountry(s){
+  const sb=document.getElementById('sidebar');
+  const det=document.getElementById('countryDetail');
+  const color=ratingColor(s.rating);
+  let histHTML='';
+  (s.ratingHistory||[]).forEach(h=>{
+    histHTML+=`<tr><td>${h.date}</td><td>${h.action}</td></tr>`;
+  });
+  det.innerHTML=`
+    <div class="country-name">${s.name}</div>
+    <div class="country-region">${s.region}</div>
+    <div class="rating-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${s.rating}</div>
+    <div class="outlook-badge">Outlook: <span style="color:${outlookColor(s.outlook)}">${outlookIcon(s.outlook)} ${s.outlook}</span></div>
+    <div class="section-title">Economy</div>
+    <div class="econ-grid">
+      <div class="econ-card"><div class="econ-label">GDP</div><div class="econ-value">$${fmtNum(s.economy.gdpBillions)}</div></div>
+      <div class="econ-card"><div class="econ-label">Population</div><div class="econ-value">${s.economy.populationMillions>=1000?(s.economy.populationMillions/1000).toFixed(2)+'B':s.economy.populationMillions.toFixed(1)+'M'}</div></div>
+      <div class="econ-card"><div class="econ-label">Debt/GDP</div><div class="econ-value">${s.economy.debtToGdpPct}%</div></div>
+      <div class="econ-card"><div class="econ-label">GDP/Capita</div><div class="econ-value">$${(s.economy.gdpBillions*1000/s.economy.populationMillions).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+</div></div>
+    </div>
+    <div class="section-title">Rating History</div>
+    <table class="history-table">${histHTML}</table>
+  `;
+  sb.classList.remove('hidden');
+  document.getElementById('actionsPanel').classList.add('hidden');
+}
+
+function buildActions(){
+  const all=[];
+  sovereigns.forEach(s=>{
+    (s.ratingHistory||[]).forEach(h=>{
+      all.push({country:s.name,iso3:s.iso3,date:h.date,action:h.action,rating:s.rating});
+    });
+  });
+  all.sort((a,b)=>b.date.localeCompare(a.date));
+  const list=document.getElementById('actionsList');
+  list.innerHTML=all.slice(0,30).map(a=>`
+    <div class="action-item" data-iso="${a.iso3}">
+      <div class="action-date">${a.date}</div>
+      <div class="action-country">${a.country} <span style="color:${ratingColor(a.rating)};font-size:12px">${a.rating}</span></div>
+      <div class="action-desc">${a.action}</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('.action-item').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const s=sovereigns.find(x=>x.iso3===el.dataset.iso);
+      if(s)showCountry(s);
+    });
+  });
+}
+
+function updateStats(){
+  const visible=sovereigns.filter(matchesFilter);
+  const tiers={};
+  visible.forEach(s=>{const t=ratingTier(s.rating);tiers[t]=(tiers[t]||0)+1;});
+  document.getElementById('statsBar').innerHTML=`
+    <div class="stat-pill"><b>${visible.length}</b> countries</div>
+    <div class="stat-pill">Investment Grade: <b>${(tiers.aaa||0)+(tiers.aa||0)+(tiers.a||0)+(tiers.bbb||0)}</b></div>
+    <div class="stat-pill">Speculative: <b>${(tiers.bb||0)+(tiers.b||0)+(tiers.ccc||0)}</b></div>
+  `;
+}
+
+function styleFeature(feature){
+  const iso3=feature.properties.ISO_A3;
+  const s=sovereigns.find(x=>x.iso3===iso3);
+  const matched=s && matchesFilter(s);
+  return{
+    fillColor:s?ratingColor(s.rating):'#3f3f46',
+    fillOpacity:(!s||matched)?0.7:0.08,
+    weight:1,
+    color:'#1a1a2e',
+    opacity:1
+  };
+}
+
+async function init(){
+  map=L.map('map',{
+    center:[25,10],zoom:2.5,minZoom:2,maxZoom:7,
+    zoomControl:true,
+    attributionControl:false,
+    worldCopyJump:true,
+    maxBoundsViscosity:1
+  });
+  map.getPane('tilePane').style.filter='brightness(0.3) saturate(0.2)';
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd'}).addTo(map);
+
+  const [sovRes,geoRes]=await Promise.all([
+    fetch('data/sovereigns.json'),
+    fetch(GEOJSON_URL)
+  ]);
+  sovereigns=await sovRes.json();
+  const geo=await geoRes.json();
+
+  geoLayer=L.geoJSON(geo,{
+    style:styleFeature,
+    onEachFeature(feature,layer){
+      const iso3=feature.properties.ISO_A3;
+      const s=sovereigns.find(x=>x.iso3===iso3);
+      if(s){
+        layer.bindTooltip(`<div class="tt-name">${s.name}</div><div class="tt-rating">${s.rating} · ${s.outlook}</div>`,{className:'country-tooltip',sticky:true});
+        layer.on('click',()=>showCountry(s));
+        layer.on('mouseover',function(){this.setStyle({weight:2,color:'#fff',fillOpacity:0.9})});
+        layer.on('mouseout',function(){geoLayer.resetStyle(this)});
+      }
+    }
+  }).addTo(map);
+
+  updateStats();
+  buildActions();
+
+  // Filters
+  ['searchInput','regionFilter','ratingFilter'].forEach(id=>{
+    document.getElementById(id).addEventListener(id==='searchInput'?'input':'change',()=>{
+      geoLayer.setStyle(styleFeature);
+      updateStats();
+    });
+  });
+
+  document.getElementById('actionsBtn').addEventListener('click',function(){
+    const p=document.getElementById('actionsPanel');
+    p.classList.toggle('hidden');
+    this.classList.toggle('active');
+    document.getElementById('sidebar').classList.add('hidden');
+  });
+  document.getElementById('closeSidebar').addEventListener('click',()=>document.getElementById('sidebar').classList.add('hidden'));
+  document.getElementById('closeActions').addEventListener('click',()=>{
+    document.getElementById('actionsPanel').classList.add('hidden');
+    document.getElementById('actionsBtn').classList.remove('active');
+  });
+}
+
+init();
+</script>
+</body>
+</html>
