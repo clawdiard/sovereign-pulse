@@ -235,7 +235,7 @@ function updateStats(){
 }
 
 function styleFeature(feature){
-  const iso3=feature.properties.ISO_A3;
+  const iso3=feature.properties['ISO3166-1-Alpha-3'];
   const s=sovereigns.find(x=>x.iso3===iso3);
   const matched=s && matchesFilter(s);
   return{
@@ -268,7 +268,7 @@ async function init(){
   geoLayer=L.geoJSON(geo,{
     style:styleFeature,
     onEachFeature(feature,layer){
-      const iso3=feature.properties.ISO_A3;
+      const iso3=feature.properties['ISO3166-1-Alpha-3'];
       const s=sovereigns.find(x=>x.iso3===iso3);
       if(s){
         layer.bindTooltip(`<div class="tt-name">${s.name}</div><div class="tt-rating">${s.rating} · ${s.outlook}</div>`,{className:'country-tooltip',sticky:true});
